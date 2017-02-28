@@ -4,6 +4,7 @@ import Html exposing (Html, button, div, input, text)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (class, placeholder)
 import List
+import Debug
 
 
 main =
@@ -18,19 +19,20 @@ type alias Card =
     { id : String
     , value : String
     , flipped : Bool
+    , found : Bool
     }
 
 
 type alias Model =
-    { player : String
-    , counter : Int
+    { counter : Int
     , cards : List Card
+    , player : String
     }
 
 
 model : Model
 model =
-    Model "" 0 []
+    Model 0 [] ""
 
 
 
@@ -52,19 +54,47 @@ update msg model =
         ShuffleCards ->
             { model
                 | cards =
-                    List.map (\( id, value ) -> (Card id value False))
+                    List.map (\( id, value ) -> (Card id value False False))
                         [ ( "1", "A" ), ( "2", "C" ), ( "3", "B" ), ( "4", "A" ), ( "5", "B" ), ( "6", "C" ) ]
             }
 
         FlipCard selectedCard ->
             let
-                updateCard card =
-                    if card.id == selectedCard.id then
+                flipCard card =
+                    if not (card.found) && (card.id == selectedCard.id || (card.flipped && card.value /= selectedCard.value)) then
                         { card | flipped = not card.flipped }
                     else
                         card
+
+                flipCards =
+                    List.map flipCard model.cards
+
+                getGuesses cards =
+                    List.filter (\card -> (isAGuess card selectedCard)) cards
+
+                foundCards =
+                    getGuesses flipCards
+
+                markAsFound card =
+                    if List.member card foundCards then
+                        { card | found = True }
+                    else
+                        card
+
+                updateCards =
+                    List.map markAsFound flipCards
             in
-                { model | cards = (List.map updateCard model.cards) }
+                case List.length foundCards of
+                    2 ->
+                        { model | cards = updateCards, counter = model.counter + 1 }
+
+                    _ ->
+                        { model | cards = flipCards }
+
+
+isAGuess : Card -> Card -> Bool
+isAGuess card1 card2 =
+    card1.value == card2.value && card1.flipped && not (card1.found)
 
 
 drawCard : Card -> Html Msg
@@ -86,4 +116,5 @@ view model =
         , div [] [ text model.player ]
         , button [ onClick ShuffleCards ] [ text "Shuffle cards" ]
         , div [] (List.map drawCard model.cards)
+        , div [] [ text (toString model.counter) ]
         ]
