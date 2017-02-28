@@ -15,12 +15,14 @@ main =
 -- MODEL
 
 
+type StateCard
+    = Back
+    | Front
+    | Found
+
+
 type alias Card =
-    { id : String
-    , value : String
-    , flipped : Bool
-    , found : Bool
-    }
+    { id : String, value : String, state : StateCard }
 
 
 type alias Model =
@@ -54,55 +56,101 @@ update msg model =
         ShuffleCards ->
             { model
                 | cards =
-                    List.map (\( id, value ) -> (Card id value False False))
+                    List.map (\( id, value ) -> (Card id value Back))
                         [ ( "1", "A" ), ( "2", "C" ), ( "3", "B" ), ( "4", "A" ), ( "5", "B" ), ( "6", "C" ) ]
             }
 
         FlipCard selectedCard ->
-            let
-                flipCard card =
-                    if not (card.found) && (card.id == selectedCard.id || (card.flipped && card.value /= selectedCard.value)) then
-                        { card | flipped = not card.flipped }
-                    else
-                        card
+            case selectedCard.state of
+                Back ->
+                    let
+                        updateStateCard card =
+                            case card.state of
+                                Back ->
+                                    if card == selectedCard then
+                                        { card | state = Front }
+                                    else
+                                        card
 
-                flipCards =
-                    List.map flipCard model.cards
+                                Front ->
+                                    if card.value /= selectedCard.value then
+                                        { card | state = Back }
+                                    else
+                                        card
 
-                getGuesses cards =
-                    List.filter (\card -> (isAGuess card selectedCard)) cards
+                                Found ->
+                                    card
 
-                foundCards =
-                    getGuesses flipCards
+                        flipCards =
+                            List.map updateStateCard model.cards
 
-                markAsFound card =
-                    if List.member card foundCards then
-                        { card | found = True }
-                    else
-                        card
+                        getGuesses cards =
+                            List.filter (\card -> (isAGuess card selectedCard)) cards
 
-                updateCards =
-                    List.map markAsFound flipCards
-            in
-                case List.length foundCards of
-                    2 ->
-                        { model | cards = updateCards, counter = model.counter + 1 }
+                        foundCards =
+                            getGuesses flipCards
 
-                    _ ->
-                        { model | cards = flipCards }
+                        markAsFound card =
+                            case card.state of
+                                Front ->
+                                    if List.member card foundCards then
+                                        { card | state = Found }
+                                    else
+                                        card
+
+                                _ ->
+                                    card
+
+                        updateCards =
+                            List.map markAsFound flipCards
+                    in
+                        case List.length foundCards of
+                            2 ->
+                                { model | cards = updateCards, counter = model.counter + 1 }
+
+                            _ ->
+                                { model | cards = flipCards }
+
+                Front ->
+                    let
+                        flipBackCard card =
+                            case card.state of
+                                Front ->
+                                    if card == selectedCard then
+                                        { card | state = Back }
+                                    else
+                                        card
+
+                                _ ->
+                                    card
+                    in
+                        { model | cards = (List.map flipBackCard model.cards) }
+
+                Found ->
+                    model
 
 
 isAGuess : Card -> Card -> Bool
-isAGuess card1 card2 =
-    card1.value == card2.value && card1.flipped && not (card1.found)
+isAGuess other_card guess =
+    case other_card.state of
+        Front ->
+            if other_card.value == guess.value then
+                True
+            else
+                False
+
+        _ ->
+            False
 
 
 drawCard : Card -> Html Msg
 drawCard card =
-    if card.flipped then
-        div [ onClick (FlipCard card) ] [ text card.value ]
-    else
-        div [ onClick (FlipCard card) ] [ text "card" ]
+    case card.state of
+        Back ->
+            div [ onClick (FlipCard card) ] [ text "card" ]
+
+        _ ->
+            div [ onClick (FlipCard card) ] [ text card.value ]
 
 
 
