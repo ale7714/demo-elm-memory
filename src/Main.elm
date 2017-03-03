@@ -63,6 +63,7 @@ update msg model =
         UpdatePlayer newPlayer ->
             { model | player = newPlayer }
 
+        -- TODO: Implement with random
         ShuffleCards ->
             { model
                 | cards =
@@ -71,6 +72,8 @@ update msg model =
                 , state = Playing
             }
 
+        --- TODO: remove unneeded parenthesis in favor of the infix operator
+        --- TODO: Move cards logic into its own module
         FlipCard selectedCard ->
             case selectedCard.state of
                 Back ->
@@ -244,8 +247,8 @@ view model =
         Playing ->
             div [ bodyStyle ]
                 [ div [ divStyle ]
-                    [ div [] [ text (String.append "Player: " model.player) ]
-                    , div [] [ text (String.append "Count: " (toString model.counter)) ]
+                    [ div [] [ model.player |> String.append "Player: " |> text ]
+                    , div [] [ model.counter |> toString |> String.append "Count: " |> text ]
                     ]
                 , div [ divStyle ] (List.map drawCard model.cards)
                 , div [ divStyle ] [ button [ onClick RestartGame, inputStyle ] [ text "RestartGame" ] ]
